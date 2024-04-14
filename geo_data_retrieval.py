@@ -149,13 +149,9 @@ def calculate_pct_diff(dashboard_df):
             # Merge national data for comparison based on the year
             state_df = state_df.merge(national_df[['year', column]], on='year', suffixes=('', '_national'))
             # Calculate percentage difference to the national value
-            state_df[f'{column}_pct_diff_to_national'] = ((state_df[column] - state_df[f'{column}_national']) / state_df[f'{column}_national']) * 100
+            state_df[f'{column}_pct_diff_to_national'] = ((state_df[column] - state_df[f'{column}_national']) / state_df[f'{column}_national']) *100
 
     return state_df
-
-
-
-
 
 
 def get_us_state_geojson(url):

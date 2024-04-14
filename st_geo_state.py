@@ -38,9 +38,8 @@ fig = px.choropleth(
     color=selected_cost,
     scope='usa',
     hover_data={
-        'geo_desc': True,
-        selected_cost: ':.2f',
-        f'{selected_cost}_pct_diff_to_national': ':.2%'
+        'geo_desc': False,
+        selected_cost: ':.2f'
     },
     hover_name='geo_desc',
     title=f"{selected_cost} cost by State in {selected_year}",
@@ -97,11 +96,60 @@ def create_cost_breakdown_chart(state_df,selected_year,selected_state):
             state_data['hospice_per_capita_pct_diff_to_national']
         ]
     })
-    return chart_df
+    return chart_df.round(2)
 
 states = state_df[state_df['geo_level'] == 'State']['geo_desc'].unique()
 selected_state = st.selectbox("Select State", sorted(states))
 
 comparison_table = create_cost_breakdown_chart(state_df,selected_year,selected_state)
 st.table(comparison_table)
+
+state_info = state_df[(state_df['year'] == selected_year) & (state_df['geo_desc'] == selected_state)]
+state_details = {
+    'Beneficiary Count': state_info['beneficiary_count'].values[0],
+    '% Eligible for Medicaid': state_info['percent_eligible_medicaid'].values[0]*100,
+    'Hospital Readmission Rate (%)': state_info['hospital_readmission_rate'].values[0]*100,
+    'ED Visits per 1000 Beneficiaries': state_info['ed_visits_per_1000_beneficiaries'].values[0]
+}
+state_details_df = pd.DataFrame(state_details.items(), columns=['Metric', 'Value'])
+state_details_df.set_index('Metric', inplace=True)
+state_details_df = state_details_df.round(2)
+
+# Convert numerical columns to strings to enforce the two decimal place format in Streamlit's table display.
+state_details_df_str = state_details_df.applymap(lambda x: f"{x:.2f}" if isinstance(x, (int, float)) else x)
+
+# Display the table in the Streamlit dashboard.
+st.markdown(f"Detailed Information for {selected_state} ({selected_year})")
+st.table(state_details_df_str)
+
+def create_multi_year_cost_chart(state_df, selected_state):
+    state_data = state_df[state_df['geo_desc'] == selected_state]
+    plot_data = state_data.melt(id_vars=['year'], value_vars=[
+        'total_costs_per_capita', 'inpatient_per_capita', 'ambulance_per_capita',
+        'post_acute_care_per_capita', 'durable_medical_equipment_per_capita',
+        'part_b_drug_per_capita', 'physician_opd_per_capita', 'hospice_per_capita'
+    ], var_name='Cost Type', value_name='Cost Per Capita')
+
+    fig = px.line(
+        plot_data,
+        x='year',
+        y='Cost Per Capita',
+        color='Cost Type',
+        title=f"Annual Cost Breakdown Per Capita for {selected_state}",
+        labels={'Cost Per Capita': 'Cost Per Capita ($)', 'year': 'Year'},
+        markers=True
+    )
+    fig.update_layout(
+        xaxis_title='Year',
+        yaxis_title='Cost Per Capita ($)',
+        legend_title='Cost Type',
+        legend=dict(orientation='h', yanchor='bottom', y=-0.5, xanchor='center', x=0.5)
+    )
+    return fig
+
+if selected_state:
+    st.plotly_chart(create_multi_year_cost_chart(state_df, selected_state))
+
+
+
 
